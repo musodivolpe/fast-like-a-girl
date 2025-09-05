@@ -1,4 +1,4 @@
-const CACHE = 'ciclo-digiuno-v1';
+const CACHE = 'ciclo-digiuno-v2';
 const ASSETS = [
   './',
   './index.html',
