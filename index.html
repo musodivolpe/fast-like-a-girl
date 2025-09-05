@@ -43,6 +43,11 @@
   <header>
     <div class="container" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
       <h1>🗓️ J fasts like a girl</h1>
+      <div class="right small">
+        <button class="btn ghost" id="exportBtn" title="Esporta JSON">Esporta</button>
+        <button class="btn ghost" id="importBtn" title="Importa JSON">Importa</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none">
+      </div>
     </div>
   </header>
 
@@ -50,4 +55,374 @@
     <div class="tabs">
       <button class="tab active" data-tab="oggi">Oggi</button>
       <button class="tab" data-tab="timer">Timer</button>
-      <button class="tab" data-tab="regole">
+      <button class="tab" data-tab="regole">Regole</button>
+      <button class="tab" data-tab="setup">Setup</button>
+      <button class="tab" data-tab="log">Log</button>
+    </div>
+
+    <!-- OGGI -->
+    <section class="card" id="tab-oggi">
+      <div class="kpi">
+        <div class="pill">Giorno ciclo: <strong id="kpi-day">-</strong></div>
+        <div class="pill">Lunghezza ciclo: <strong id="kpi-len">-</strong> giorni</div>
+        <div class="pill">Giorno 1: <strong id="kpi-day1">-</strong></div>
+      </div>
+      <div style="margin-top:12px">
+        <h3 style="margin:0 0 6px">Direttive di oggi</h3>
+        <p class="muted small" id="phaseInfo"></p>
+        <div class="card" style="background:#0f0f0f">
+          <div class="row cols-2">
+            <div>
+              <label>Ore di digiuno</label>
+              <input id="oggi-fasting" type="number" min="0" step="1" />
+            </div>
+            <div>
+              <label>Alimentazione / note</label>
+              <textarea id="oggi-diet" rows="3" placeholder="Es: carbo moderati, proteine, brodo...\n"></textarea>
+            </div>
+          </div>
+          <div class="right" style="margin-top:8px">
+            <button class="btn" id="resetOggi">Ripristina da Regole</button>
+            <button class="btn primary" id="salvaOggi">Salva per Oggi</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIMER -->
+    <section class="card" id="tab-timer" style="display:none">
+      <div class="row cols-3">
+        <div>
+          <label>Stato</label>
+          <div class="pill" id="timerStatus">Pronto</div>
+        </div>
+        <div>
+          <label>Inizio</label>
+          <div class="pill" id="timerStart">—</div>
+        </div>
+        <div>
+          <label>Trascorso</label>
+          <div class="pill" id="timerElapsed">00:00:00</div>
+        </div>
+      </div>
+      <div class="right" style="margin-top:12px">
+        <button class="btn primary" id="timerStartBtn">Start digiuno</button>
+        <button class="btn warn" id="timerStopBtn" disabled>Stop</button>
+        <button class="btn" id="timerResetBtn">Azzera</button>
+      </div>
+    </section>
+
+    <!-- REGOLE -->
+    <section class="card" id="tab-regole" style="display:none">
+      <div class="row cols-2">
+        <div>
+          <label>Lunghezza ciclo (giorni)</label>
+          <input id="cycleLen" type="number" min="20" max="60" step="1" />
+        </div>
+        <div>
+          <label>Giorno 1 (data)</label>
+          <input id="day1" type="date" />
+        </div>
+      </div>
+      <div class="right" style="margin-top:8px">
+        <button class="btn" id="rebuildRules">Ricrea tabella</button>
+        <button class="btn primary" id="saveSetup">Salva base</button>
+      </div>
+      <div style="margin-top:12px;overflow:auto">
+        <table id="rulesTable">
+          <thead>
+            <tr><th>Giorno</th><th>Ore digiuno</th><th>Alimentazione / note</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SETUP -->
+    <section class="card" id="tab-setup" style="display:none">
+      <p class="muted small">Imposta solo una volta: lunghezza del ciclo e data del Giorno 1. Compila poi le regole giorno-per-giorno nella tab "Regole".</p>
+      <div class="row cols-2">
+        <div>
+          <label>Lunghezza ciclo (giorni)</label>
+          <input id="setupLen" type="number" min="20" max="60" step="1" />
+        </div>
+        <div>
+          <label>Giorno 1 (data)</label>
+          <input id="setupDay1" type="date" />
+        </div>
+      </div>
+      <div class="right" style="margin-top:8px">
+        <button class="btn primary" id="setupApply">Applica</button>
+      </div>
+    </section>
+
+    <!-- LOG -->
+    <section class="card" id="tab-log" style="display:none">
+      <div style="overflow:auto">
+        <table id="logTable">
+          <thead><tr><th>Inizio</th><th>Fine</th><th>Durata (hh:mm)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="right" style="margin-top:8px">
+        <button class="btn" id="clearLog">Svuota log</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+  // --- Storage helpers ---
+  const SKEY = 'cd.state.v1';
+  const defaultState = () => ({
+    cycleLen: 26,
+    day1: null, // 'YYYY-MM-DD'
+    rules: {}, // { '1': {fast: 14, diet: ''}, ... }
+    overrides: {}, // date -> {fast,diet}
+    timer: { running:false, start:null },
+    log: [] // [{start,end,durMs}]
+  });
+  const load = () => {
+    try{ return JSON.parse(localStorage.getItem(SKEY)) || defaultState(); }
+    catch{ return defaultState(); }
+  }
+  const save = (s) => localStorage.setItem(SKEY, JSON.stringify(s));
+  let state = load();
+
+  // --- Utils ---
+  const fmtDate = (d) => new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  const todayStr = () => fmtDate(new Date());
+  const parseDate = (str) => { const [y,m,dd] = str.split('-').map(Number); return new Date(y, m-1, dd); };
+  const diffDays = (a,b) => Math.floor((a-b)/(1000*60*60*24));
+  const clampDay = (n,len) => ((n-1)%len+len)%len + 1;
+
+  // --- Tabs ---
+  const tabs = document.querySelectorAll('.tab');
+  const sections = {
+    oggi: document.getElementById('tab-oggi'),
+    timer: document.getElementById('tab-timer'),
+    regole: document.getElementById('tab-regole'),
+    setup: document.getElementById('tab-setup'),
+    log: document.getElementById('tab-log'),
+  };
+  tabs.forEach(t=>t.addEventListener('click',()=>{
+    tabs.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    Object.values(sections).forEach(s=>s.style.display='none');
+    sections[t.dataset.tab].style.display='block';
+  }));
+
+  // --- Elements ---
+  const kpiDay = document.getElementById('kpi-day');
+  const kpiLen = document.getElementById('kpi-len');
+  const kpiDay1 = document.getElementById('kpi-day1');
+  const phaseInfo = document.getElementById('phaseInfo');
+  const oggiFast = document.getElementById('oggi-fasting');
+  const oggiDiet = document.getElementById('oggi-diet');
+  const salvaOggi = document.getElementById('salvaOggi');
+  const resetOggi = document.getElementById('resetOggi');
+
+  const cycleLen = document.getElementById('cycleLen');
+  const day1 = document.getElementById('day1');
+  const rebuildRules = document.getElementById('rebuildRules');
+  const saveSetup = document.getElementById('saveSetup');
+  const rulesTable = document.getElementById('rulesTable').querySelector('tbody');
+
+  const setupLen = document.getElementById('setupLen');
+  const setupDay1 = document.getElementById('setupDay1');
+  const setupApply = document.getElementById('setupApply');
+
+  const logTable = document.getElementById('logTable').querySelector('tbody');
+  const clearLog = document.getElementById('clearLog');
+
+  // Timer
+  const tStatus = document.getElementById('timerStatus');
+  const tStart = document.getElementById('timerStart');
+  const tElapsed = document.getElementById('timerElapsed');
+  const tStartBtn = document.getElementById('timerStartBtn');
+  const tStopBtn = document.getElementById('timerStopBtn');
+  const tResetBtn = document.getElementById('timerResetBtn');
+
+  // Export/Import
+  const exportBtn = document.getElementById('exportBtn');
+  const importBtn = document.getElementById('importBtn');
+  const importFile = document.getElementById('importFile');
+
+  // --- Logic ---
+  function ensureRules(len){
+    for(let d=1; d<=len; d++){
+      if(!state.rules[d]) state.rules[d] = {fast:14, diet:''};
+    }
+    // Trim if reduced
+    Object.keys(state.rules).forEach(k=>{ const n=Number(k); if(n<1 || n>len) delete state.rules[k]; });
+  }
+
+  function currentDay(){
+    if(!state.day1 || !state.cycleLen) return null;
+    const d1 = parseDate(state.day1);
+    const delta = diffDays(new Date(), d1);
+    return clampDay(delta+1, state.cycleLen);
+  }
+
+  function phaseFromDay(day,len){
+    // Testo informativo grezzo
+    const ov = Math.round(len*0.5);
+    if(day===1) return 'Mestruale (inizio)';
+    if(day<=Math.round(len*0.3)) return 'Follicolare';
+    if(Math.abs(day-ov)<=1) return 'Ovulatoria (circa)';
+    if(day>Math.round(len*0.6)) return 'Luteale';
+    return 'Intermedia';
+  }
+
+  function renderRulesTable(){
+    rulesTable.innerHTML='';
+    const len = state.cycleLen || 26;
+    ensureRules(len);
+    for(let d=1; d<=len; d++){
+      const r = state.rules[d]||{fast:14,diet:''};
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="width:64px">${d}</td>
+        <td style="width:120px"><input type="number" min="0" step="1" value="${r.fast}" data-day="${d}" data-key="fast"/></td>
+        <td><textarea rows="1" data-day="${d}" data-key="diet">${r.diet||''}</textarea></td>
+      `;
+      rulesTable.appendChild(tr);
+    }
+    rulesTable.querySelectorAll('input,textarea').forEach(el=>{
+      el.addEventListener('change', (e)=>{
+        const day = Number(e.target.dataset.day);
+        const key = e.target.dataset.key;
+        state.rules[day][key] = key==='fast' ? Number(e.target.value) : e.target.value;
+        save(state);
+      });
+    });
+  }
+
+  function renderSetup(){
+    cycleLen.value = state.cycleLen || 26;
+    day1.value = state.day1 || '';
+    setupLen.value = state.cycleLen || 26;
+    setupDay1.value = state.day1 || '';
+  }
+
+  function renderOggi(){
+    kpiLen.textContent = state.cycleLen || '-';
+    kpiDay1.textContent = state.day1 || '-';
+    const cday = currentDay();
+    kpiDay.textContent = cday || '-';
+    const len = state.cycleLen || 26;
+    phaseInfo.textContent = cday ? phaseFromDay(cday,len) : '';
+
+    const today = todayStr();
+    const ov = state.overrides[today];
+    const base = cday ? state.rules[cday] : null;
+    const fast = (ov?.fast ?? base?.fast ?? 14);
+    const diet = (ov?.diet ?? base?.diet ?? '');
+    oggiFast.value = fast;
+    oggiDiet.value = diet;
+  }
+
+  function renderLog(){
+    logTable.innerHTML='';
+    state.log.slice().reverse().forEach(item=>{
+      const tr = document.createElement('tr');
+      const durMin = Math.round(item.durMs/60000);
+      const hh = String(Math.floor(durMin/60)).padStart(2,'0');
+      const mm = String(durMin%60).padStart(2,'0');
+      tr.innerHTML = `<td>${new Date(item.start).toLocaleString()}</td><td>${item.end? new Date(item.end).toLocaleString():'—'}</td><td>${hh}:${mm}</td>`;
+      logTable.appendChild(tr);
+    });
+  }
+
+  // Timer functions
+  let tickHandle = null;
+  function updateElapsed(){
+    if(!state.timer.running || !state.timer.start){ tElapsed.textContent = '00:00:00'; return; }
+    const ms = Date.now() - state.timer.start;
+    const s = Math.floor(ms/1000); const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); const sec=s%60;
+    tElapsed.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+  function renderTimer(){
+    tStatus.textContent = state.timer.running ? 'In corso' : 'Pronto';
+    tStart.textContent = state.timer.start ? new Date(state.timer.start).toLocaleString() : '—';
+    tStartBtn.disabled = state.timer.running;
+    tStopBtn.disabled = !state.timer.running;
+    updateElapsed();
+    if(tickHandle) clearInterval(tickHandle);
+    if(state.timer.running) tickHandle = setInterval(updateElapsed, 1000);
+  }
+
+  // --- Event wiring ---
+  rebuildRules.addEventListener('click', ()=>{ ensureRules(Number(cycleLen.value)||26); renderRulesTable(); save(state); });
+  saveSetup.addEventListener('click', ()=>{
+    state.cycleLen = Number(cycleLen.value)||26;
+    state.day1 = day1.value||null;
+    ensureRules(state.cycleLen);
+    save(state); renderSetup(); renderRulesTable(); renderOggi();
+    alert('Impostazioni salvate');
+  });
+  setupApply.addEventListener('click', ()=>{
+    state.cycleLen = Number(setupLen.value)||26;
+    state.day1 = setupDay1.value||null;
+    ensureRules(state.cycleLen);
+    save(state); renderSetup(); renderRulesTable(); renderOggi();
+    alert('Impostazioni applicate');
+  });
+
+  salvaOggi.addEventListener('click', ()=>{
+    const today = todayStr();
+    state.overrides[today] = { fast: Number(oggiFast.value)||0, diet: oggiDiet.value||'' };
+    save(state); alert('Direttive di oggi salvate');
+  });
+  resetOggi.addEventListener('click', ()=>{ delete state.overrides[todayStr()]; save(state); renderOggi(); });
+
+  // Timer events
+  tStartBtn.addEventListener('click', ()=>{
+    if(state.timer.running) return;
+    state.timer.running = true; state.timer.start = Date.now(); save(state); renderTimer();
+  });
+  tStopBtn.addEventListener('click', ()=>{
+    if(!state.timer.running) return;
+    const end = Date.now();
+    const dur = end - state.timer.start;
+    state.log.push({ start: state.timer.start, end, durMs: dur });
+    state.timer.running = false; state.timer.start = null; save(state); renderTimer(); renderLog();
+  });
+  tResetBtn.addEventListener('click', ()=>{
+    state.timer.running=false; state.timer.start=null; save(state); renderTimer();
+  });
+
+  // Clear log
+  clearLog.addEventListener('click', ()=>{ if(confirm('Sicura di cancellare il log?')){ state.log=[]; save(state); renderLog(); } });
+
+  // Export/Import
+  exportBtn.addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ciclo-digiuno-backup.json';
+    a.click();
+  });
+  importBtn.addEventListener('click', ()=> importFile.click());
+  importFile.addEventListener('change', async (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    const txt = await f.text();
+    try{ const obj = JSON.parse(txt); state = Object.assign(defaultState(), obj); save(state); location.reload(); }
+    catch{ alert('File non valido'); }
+  });
+
+  // Initial render
+  ensureRules(state.cycleLen||26);
+  renderSetup();
+  renderRulesTable();
+  renderOggi();
+  renderLog();
+  renderTimer();
+
+  // --- Register Service Worker ---
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js');
+  }
+  </script>
+</body>
+</html>
