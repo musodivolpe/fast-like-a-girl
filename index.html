@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ciclo + Digiuno (PWA)</title>
+  <meta name="theme-color" content="#111" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    /* ... (stesso CSS che hai già, puoi incollarlo identico) ... */
+  </style>
+</head>
+<body>
+  <!-- Tutto l'HTML che hai già (header, tabs, sezioni Oggi/Timer/Regole/Setup/Log) -->
+
+  <script>
+    // --- JS che hai già (gestione stato, timer, tab, ecc.) ---
+    // Alla fine, registriamo il service worker
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+</body>
+</html>
