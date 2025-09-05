@@ -3,23 +3,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ciclo + Digiuno (PWA)</title>
+  <title>J fasts like a girl</title>
   <meta name="theme-color" content="#111" />
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <style>
-    /* ... (stesso CSS che hai già, puoi incollarlo identico) ... */
+    :root{--bg:#0b0b0b;--fg:#f4f4f4;--muted:#bdbdbd;--card:#151515;--acc:#2dd4bf;--warn:#f59e0b;--danger:#ef4444}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
+    header{position:sticky;top:0;background:rgba(11,11,11,.9);backdrop-filter:saturate(120%) blur(6px);padding:12px 16px;border-bottom:1px solid #222}
+    h1{margin:0;font-size:18px;font-weight:700}
+    .container{max-width:760px;margin:0 auto;padding:16px}
+    .card{background:var(--card);border:1px solid #222;border-radius:16px;padding:16px;margin-bottom:16px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea,button{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #2a2a2a;background:#111;color:var(--fg);font-size:15px}
+    input:focus,textarea:focus,select:focus{outline:2px solid var(--acc);border-color:transparent}
+    .row{display:grid;gap:12px}
+    .row.cols-2{grid-template-columns:1fr 1fr}
+    .row.cols-3{grid-template-columns:repeat(3,1fr)}
+    .muted{color:var(--muted)}
+    .btn{cursor:pointer;border:1px solid #2a2a2a}
+    .btn.primary{background:var(--acc);color:#041b18;border:none}
+    .btn.warn{background:var(--warn);color:#1b1404;border:none}
+    .btn.ghost{background:#111}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+    .tab{padding:10px 12px;border-radius:999px;border:1px solid #222;background:#121212;cursor:pointer}
+    .tab.active{background:var(--acc);color:#0b1614;border-color:transparent}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #222;padding:8px;text-align:left}
+    th{font-size:12px;color:var(--muted);font-weight:600}
+    td input, td textarea{width:100%}
+    .kpi{display:flex;gap:12px;flex-wrap:wrap}
+    .pill{background:#111;border:1px solid #222;border-radius:999px;padding:6px 10px;font-size:13px;color:var(--muted)}
+    .right{display:flex;gap:8px;justify-content:flex-end}
+    .small{font-size:12px}
+    .center{text-align:center}
   </style>
 </head>
 <body>
-  <!-- Tutto l'HTML che hai già (header, tabs, sezioni Oggi/Timer/Regole/Setup/Log) -->
+  <header>
+    <div class="container" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <h1>🗓️ J fasts like a girl</h1>
+    </div>
+  </header>
 
-  <script>
-    // --- JS che hai già (gestione stato, timer, tab, ecc.) ---
-    // Alla fine, registriamo il service worker
-    if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('sw.js');
-    }
-  </script>
-</body>
-</html>
+  <main class="container">
+    <div class="tabs">
+      <button class="tab active" data-tab="oggi">Oggi</button>
+      <button class="tab" data-tab="timer">Timer</button>
+      <button class="tab" data-tab="regole">
